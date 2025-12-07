@@ -8,11 +8,32 @@ public class GhostVisual : MonoBehaviour
     [SerializeField] private TextMeshPro nameLabel;
     [SerializeField] private float bobSpeed = 1f;
     [SerializeField] private float bobHeight = 0.1f;
-    [SerializeField] private float baseAlpha = 0.4f; // More transparent
+    [SerializeField] private float baseAlpha = 0.4f;
+    [SerializeField] private string testName = ""; // For editor testing
     
     private Vector3 startPos;
     private Renderer[] renderers;
     private Transform cameraTransform;
+    private bool initialized;
+    
+    void Start()
+    {
+        // Auto-initialize for test ghosts
+        if (!initialized)
+        {
+            startPos = transform.position;
+            renderers = GetComponentsInChildren<Renderer>();
+            cameraTransform = Camera.main?.transform;
+            SetAlpha(baseAlpha);
+            
+            // Use test name if no data
+            if (Data == null && nameLabel != null)
+            {
+                string displayName = string.IsNullOrEmpty(testName) ? gameObject.name : testName;
+                nameLabel.text = displayName;
+            }
+        }
+    }
     
     public void Initialize(GhostData data)
     {
@@ -20,13 +41,12 @@ public class GhostVisual : MonoBehaviour
         startPos = transform.position;
         renderers = GetComponentsInChildren<Renderer>();
         cameraTransform = Camera.main?.transform;
+        initialized = true;
         
         if (nameLabel != null)
             nameLabel.text = data.name;
         
         gameObject.name = $"Ghost_{data.id}_{data.name}";
-        
-        // Set initial transparency
         SetAlpha(baseAlpha);
     }
     
@@ -86,6 +106,6 @@ public class GhostVisual : MonoBehaviour
     
     public bool IsInRange()
     {
-        return DistanceToPlayer() <= Data.visibility_radius_m;
+        return Data != null && DistanceToPlayer() <= Data.visibility_radius_m;
     }
 }
