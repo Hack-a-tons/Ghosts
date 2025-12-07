@@ -20,6 +20,7 @@ sysinfo.txt
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -33,13 +34,18 @@ sysinfo.txt
 *.VC.db
 
 # Unity Package Manager
-/[Pp]ackages/packages-lock.json
+# Keep packages-lock.json for reproducible builds
+
+# Builds output
+My project/[Bb]uild/
+My project/[Bb]uilds/
 
 # Builds
 *.apk
 *.aab
 *.unitypackage
 *.app
+*.ipa
 
 # Crashlytics
 crashlytics-build.properties
