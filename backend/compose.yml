@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-ghosts}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ghosts}
+      - POSTGRES_DB=${POSTGRES_DB:-ghosts}
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "${PORT:-6000}:${PORT:-6000}"
+    volumes:
+      - ./.env:/app/.env:ro
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER:-ghosts}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-ghosts}
+      - DB_NAME=${POSTGRES_DB:-ghosts}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4o}
+      - PORT=${PORT:-6000}
+      - NODE_ENV=${NODE_ENV:-production}

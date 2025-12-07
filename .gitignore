@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Backend
+backend/node_modules/
+backend/data/
+
+# Unity - see unity/.gitignore for details
+unity/[Ll]ibrary/
+unity/[Tt]emp/
+unity/[Oo]bj/
+unity/[Bb]uild/
+unity/[Bb]uilds/
+unity/[Ll]ogs/
+unity/[Uu]ser[Ss]ettings/
+unity/*.apk
+unity/*.app
+unity/*_BackUpThisFolder_ButDontShipItWithYourGame/
+unity/*_BurstDebugInformation_DoNotShip/
