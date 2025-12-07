@@ -12,10 +12,8 @@ public class QuestSceneSetup : EditorWindow
         // Create new scene
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         
-        // Add OVRCameraRig if available, otherwise basic camera
+        // Add OVRCameraRig
         GameObject cameraRig = null;
-        
-        // Try to find OVRCameraRig prefab
         string[] guids = AssetDatabase.FindAssets("OVRCameraRig t:Prefab");
         if (guids.Length > 0)
         {
@@ -26,19 +24,46 @@ public class QuestSceneSetup : EditorWindow
                 cameraRig = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
                 cameraRig.name = "OVRCameraRig";
                 Debug.Log("Added OVRCameraRig from: " + path);
+                
+                // Enable passthrough on OVRManager
+                var ovrManager = cameraRig.GetComponent<OVRManager>();
+                if (ovrManager != null)
+                {
+                    ovrManager.isInsightPassthroughEnabled = true;
+                    Debug.Log("Enabled Insight Passthrough on OVRManager");
+                }
+                
+                // Add OVRPassthroughLayer
+                var ptLayer = cameraRig.AddComponent<OVRPassthroughLayer>();
+                ptLayer.overlayType = OVROverlay.OverlayType.Underlay;
+                ptLayer.compositionDepth = 0;
+                Debug.Log("Added OVRPassthroughLayer");
+                
+                // Set camera to clear with transparent
+                var centerCam = cameraRig.transform.Find("TrackingSpace/CenterEyeAnchor");
+                if (centerCam != null)
+                {
+                    var cam = centerCam.GetComponent<Camera>();
+                    if (cam != null)
+                    {
+                        cam.clearFlags = CameraClearFlags.SolidColor;
+                        cam.backgroundColor = new Color(0, 0, 0, 0);
+                        Debug.Log("Set CenterEyeAnchor camera to transparent");
+                    }
+                }
             }
         }
         
-        // Fallback to basic camera
+        // Fallback camera if no OVRCameraRig
         if (cameraRig == null)
         {
             cameraRig = new GameObject("MainCamera");
             Camera cam = cameraRig.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.1f, 0.1f, 0.2f);
+            cam.backgroundColor = new Color(0, 0, 0, 0);
             cameraRig.tag = "MainCamera";
             cameraRig.transform.position = new Vector3(0, 1.6f, 0);
-            Debug.Log("Added basic camera (OVRCameraRig not found)");
+            Debug.LogWarning("OVRCameraRig not found - using basic camera");
         }
         
         // Add directional light
@@ -52,6 +77,9 @@ public class QuestSceneSetup : EditorWindow
         GameObject debugObj = new GameObject("DebugLogger");
         debugObj.AddComponent<DebugLogger>();
         
+        // Add Passthrough Enabler (runtime backup)
+        debugObj.AddComponent<PassthroughEnabler>();
+        
         // Add GhostManagers
         GameObject managers = new GameObject("GhostManagers");
         managers.AddComponent<LocationService>();
@@ -59,7 +87,7 @@ public class QuestSceneSetup : EditorWindow
         managers.AddComponent<GhostManager>();
         managers.AddComponent<GhostInteractor>();
         
-        // Try to assign ghost prefab
+        // Assign ghost prefab
         var ghostManager = managers.GetComponent<GhostManager>();
         var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/GhostPrefab.prefab");
         if (prefabAsset != null)
@@ -69,26 +97,27 @@ public class QuestSceneSetup : EditorWindow
             if (field != null) field.SetValue(ghostManager, prefabAsset);
             Debug.Log("Ghost prefab assigned");
         }
-        else
-        {
-            Debug.LogWarning("Ghost prefab not found at Assets/Prefabs/GhostPrefab.prefab");
-        }
         
-        // Add a visible test cube so we know scene loaded
-        GameObject testCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        testCube.name = "TestCube_DeleteMe";
-        testCube.transform.position = new Vector3(0, 1.5f, 3f);
-        testCube.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-        var cubeMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        cubeMat.color = Color.red;
-        testCube.GetComponent<Renderer>().material = cubeMat;
-        
-        // Add test ghost
+        // Add test ghost 2m in front
         if (prefabAsset != null)
         {
             GameObject testGhost = PrefabUtility.InstantiatePrefab(prefabAsset) as GameObject;
             testGhost.name = "TestGhost";
-            testGhost.transform.position = new Vector3(1f, 1.5f, 3f);
+            testGhost.transform.position = new Vector3(0, 1.5f, 2f);
+            
+            var visual = testGhost.GetComponent<GhostVisual>();
+            if (visual != null)
+            {
+                var testData = new GhostData
+                {
+                    id = 999,
+                    name = "Test Ghost",
+                    personality = "Friendly",
+                    visibility_radius_m = 100,
+                    location = new GhostLocation { lat = 0, lng = 0 }
+                };
+                // Can't call Initialize in editor, will happen at runtime
+            }
         }
         
         // Save scene
@@ -101,10 +130,7 @@ public class QuestSceneSetup : EditorWindow
             new EditorBuildSettingsScene(scenePath, true)
         };
         
-        Debug.Log($"Quest scene created at {scenePath}");
-        Debug.Log("Build settings updated - QuestScene is now the ONLY scene");
-        
-        Selection.activeObject = managers;
+        Debug.Log($"Quest scene created with passthrough at {scenePath}");
     }
     
     [MenuItem("GhostLayer/Check Build Settings")]
