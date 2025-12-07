@@ -9,8 +9,14 @@ public class LocationService : MonoBehaviour
     public double Longitude { get; private set; }
     public bool IsRunning { get; private set; }
     
+    [Header("Settings")]
     [SerializeField] private float updateInterval = 1f;
     [SerializeField] private float desiredAccuracy = 5f;
+    
+    [Header("Debug/Quest Mode")]
+    [SerializeField] private bool useDebugLocation = true;
+    [SerializeField] private double debugLatitude = 37.7749;
+    [SerializeField] private double debugLongitude = -122.4194;
     
     // Reference point for world coordinate conversion
     private double refLat;
@@ -29,14 +35,29 @@ public class LocationService : MonoBehaviour
     
     void Start()
     {
-        StartCoroutine(StartLocationService());
+        if (useDebugLocation)
+        {
+            // Use debug coordinates (for Quest or testing)
+            Latitude = debugLatitude;
+            Longitude = debugLongitude;
+            refLat = Latitude;
+            refLng = Longitude;
+            hasReference = true;
+            IsRunning = true;
+            Debug.Log($"[LocationService] Debug mode: {Latitude}, {Longitude}");
+        }
+        else
+        {
+            StartCoroutine(StartLocationService());
+        }
     }
     
     IEnumerator StartLocationService()
     {
         if (!Input.location.isEnabledByUser)
         {
-            Debug.LogWarning("Location services disabled");
+            Debug.LogWarning("Location services disabled, using debug location");
+            UseDebugFallback();
             yield break;
         }
         
@@ -51,12 +72,23 @@ public class LocationService : MonoBehaviour
         
         if (Input.location.status == LocationServiceStatus.Failed)
         {
-            Debug.LogError("Location service failed");
+            Debug.LogError("Location service failed, using debug location");
+            UseDebugFallback();
             yield break;
         }
         
         IsRunning = true;
         StartCoroutine(UpdateLocation());
+    }
+    
+    void UseDebugFallback()
+    {
+        Latitude = debugLatitude;
+        Longitude = debugLongitude;
+        refLat = Latitude;
+        refLng = Longitude;
+        hasReference = true;
+        IsRunning = true;
     }
     
     IEnumerator UpdateLocation()

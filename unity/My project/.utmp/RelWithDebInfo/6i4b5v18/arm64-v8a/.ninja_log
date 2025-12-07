@@ -1,0 +1,10 @@
+# ninja log v5
+1	879	1765144592688903091	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	7ea90a7eda0bceca
+1	883	1765144592693105337	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	51e17bf7d4386eca
+0	907	1765144592716645407	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	a045c6d522daddce
+1	914	1765144592724003597	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	dadd4d5b5a6dfc70
+0	948	1765144592758606369	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	3bc380a43ccdc440
+1	1002	1765144592811637199	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	5e23b52396d41d20
+1	1137	1765144592944237213	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	875abb02972adb64
+0	1216	1765144593025570051	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	fd8c67f6e103e2c5
+1216	1373	1765144593179597072	/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6i4b5v18/obj/arm64-v8a/libgame.so	32ebee03423d7c19

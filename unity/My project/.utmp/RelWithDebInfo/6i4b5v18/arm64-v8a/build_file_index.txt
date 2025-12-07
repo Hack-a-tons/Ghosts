@@ -1,0 +1,2 @@
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/CMakeLists.txt
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/CMakeLists.txt

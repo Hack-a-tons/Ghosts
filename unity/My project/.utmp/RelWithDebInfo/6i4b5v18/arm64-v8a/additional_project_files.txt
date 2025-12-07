@@ -1,0 +1,17 @@
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/GAToUnityCallbacks.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/MacroEnd.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/MacroHeaderBegin.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/MacroSourceBegin.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGAApplication.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGAConfiguration.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGADebug.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGAEvents.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGAInput.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGASoftKeyboard.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGASoftKeyboardCallbacks.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGATypes.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UGAVersion.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UnityToGACallbacks.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UnityToGAConfigurationCallbacks.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UnityToGAKeyEventCallbacks.h
+/Users/dbystruev/Downloads/GitHub/Hack-a-tons/Ghosts/unity/My project/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/cpp/GameActivity/UnityToGAMotionEventCallbacks.h
