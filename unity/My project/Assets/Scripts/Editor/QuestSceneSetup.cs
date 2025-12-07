@@ -25,7 +25,7 @@ public class QuestSceneSetup : EditorWindow
             {
                 cameraRig = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
                 cameraRig.name = "OVRCameraRig";
-                Debug.Log("Added OVRCameraRig");
+                Debug.Log("Added OVRCameraRig from: " + path);
             }
         }
         
@@ -35,8 +35,9 @@ public class QuestSceneSetup : EditorWindow
             cameraRig = new GameObject("MainCamera");
             Camera cam = cameraRig.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = Color.black;
+            cam.backgroundColor = new Color(0.1f, 0.1f, 0.2f);
             cameraRig.tag = "MainCamera";
+            cameraRig.transform.position = new Vector3(0, 1.6f, 0);
             Debug.Log("Added basic camera (OVRCameraRig not found)");
         }
         
@@ -46,6 +47,10 @@ public class QuestSceneSetup : EditorWindow
         l.type = LightType.Directional;
         l.intensity = 1f;
         light.transform.rotation = Quaternion.Euler(50, -30, 0);
+        
+        // Add Debug Logger
+        GameObject debugObj = new GameObject("DebugLogger");
+        debugObj.AddComponent<DebugLogger>();
         
         // Add GhostManagers
         GameObject managers = new GameObject("GhostManagers");
@@ -62,61 +67,55 @@ public class QuestSceneSetup : EditorWindow
             var field = typeof(GhostManager).GetField("ghostPrefab",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             if (field != null) field.SetValue(ghostManager, prefabAsset);
+            Debug.Log("Ghost prefab assigned");
+        }
+        else
+        {
+            Debug.LogWarning("Ghost prefab not found at Assets/Prefabs/GhostPrefab.prefab");
         }
         
-        // Add a test ghost directly in scene for debugging
-        GameObject testGhost = null;
+        // Add a visible test cube so we know scene loaded
+        GameObject testCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        testCube.name = "TestCube_DeleteMe";
+        testCube.transform.position = new Vector3(0, 1.5f, 3f);
+        testCube.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+        var cubeMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        cubeMat.color = Color.red;
+        testCube.GetComponent<Renderer>().material = cubeMat;
+        
+        // Add test ghost
         if (prefabAsset != null)
         {
-            testGhost = PrefabUtility.InstantiatePrefab(prefabAsset) as GameObject;
+            GameObject testGhost = PrefabUtility.InstantiatePrefab(prefabAsset) as GameObject;
             testGhost.name = "TestGhost";
-            testGhost.transform.position = new Vector3(0, 1.5f, 3f); // 3m in front
-            
-            // Initialize with test data
-            var visual = testGhost.GetComponent<GhostVisual>();
-            if (visual != null)
-            {
-                var testData = new GhostData
-                {
-                    id = 999,
-                    name = "Test Ghost",
-                    personality = "Friendly test ghost",
-                    visibility_radius_m = 100,
-                    location = new GhostLocation { lat = 0, lng = 0 }
-                };
-                visual.Initialize(testData);
-            }
+            testGhost.transform.position = new Vector3(1f, 1.5f, 3f);
         }
         
         // Save scene
         string scenePath = "Assets/Scenes/QuestScene.unity";
         EditorSceneManager.SaveScene(scene, scenePath);
         
-        // Add to build settings
-        var buildScenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
-        bool found = false;
-        for (int i = 0; i < buildScenes.Count; i++)
+        // Set as ONLY build scene
+        EditorBuildSettings.scenes = new EditorBuildSettingsScene[]
         {
-            if (buildScenes[i].path == scenePath)
-            {
-                buildScenes[i] = new EditorBuildSettingsScene(scenePath, true);
-                found = true;
-                // Move to top
-                var s = buildScenes[i];
-                buildScenes.RemoveAt(i);
-                buildScenes.Insert(0, s);
-                break;
-            }
-        }
-        if (!found)
-        {
-            buildScenes.Insert(0, new EditorBuildSettingsScene(scenePath, true));
-        }
-        EditorBuildSettings.scenes = buildScenes.ToArray();
+            new EditorBuildSettingsScene(scenePath, true)
+        };
         
-        Debug.Log($"Quest scene created at {scenePath} and set as first build scene");
+        Debug.Log($"Quest scene created at {scenePath}");
+        Debug.Log("Build settings updated - QuestScene is now the ONLY scene");
         
         Selection.activeObject = managers;
+    }
+    
+    [MenuItem("GhostLayer/Check Build Settings")]
+    static void CheckBuildSettings()
+    {
+        Debug.Log("=== BUILD SETTINGS ===");
+        foreach (var scene in EditorBuildSettings.scenes)
+        {
+            Debug.Log($"  [{(scene.enabled ? "X" : " ")}] {scene.path}");
+        }
+        Debug.Log($"Active scene: {SceneManager.GetActiveScene().path}");
     }
 }
 #endif
