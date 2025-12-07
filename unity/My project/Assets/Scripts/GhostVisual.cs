@@ -8,7 +8,7 @@ public class GhostVisual : MonoBehaviour
     [SerializeField] private TextMeshPro nameLabel;
     [SerializeField] private float bobSpeed = 1f;
     [SerializeField] private float bobHeight = 0.1f;
-    [SerializeField] private float fadeDistance = 5f;
+    [SerializeField] private float baseAlpha = 0.4f; // More transparent
     
     private Vector3 startPos;
     private Renderer[] renderers;
@@ -25,6 +25,9 @@ public class GhostVisual : MonoBehaviour
             nameLabel.text = data.name;
         
         gameObject.name = $"Ghost_{data.id}_{data.name}";
+        
+        // Set initial transparency
+        SetAlpha(baseAlpha);
     }
     
     public void UpdateData(GhostData data)
@@ -49,16 +52,14 @@ public class GhostVisual : MonoBehaviour
                 transform.rotation = Quaternion.LookRotation(-lookDir);
         }
         
-        // Distance-based fade
-        UpdateFade();
+        // Pulse transparency
+        float pulse = baseAlpha + 0.1f * Mathf.Sin(Time.time * 2f);
+        SetAlpha(pulse);
     }
     
-    void UpdateFade()
+    void SetAlpha(float alpha)
     {
-        if (cameraTransform == null || renderers == null) return;
-        
-        float dist = Vector3.Distance(transform.position, cameraTransform.position);
-        float alpha = Mathf.Clamp01(1f - (dist - Data.visibility_radius_m) / fadeDistance);
+        if (renderers == null) return;
         
         foreach (var r in renderers)
         {
@@ -67,6 +68,12 @@ public class GhostVisual : MonoBehaviour
                 Color c = r.material.color;
                 c.a = alpha;
                 r.material.color = c;
+            }
+            if (r.material.HasProperty("_BaseColor"))
+            {
+                Color c = r.material.GetColor("_BaseColor");
+                c.a = alpha;
+                r.material.SetColor("_BaseColor", c);
             }
         }
     }
