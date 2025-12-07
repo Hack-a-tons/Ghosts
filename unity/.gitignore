@@ -46,6 +46,18 @@ My project/[Bb]uilds/
 *.unitypackage
 *.app
 *.ipa
+build.apk
+
+# Build output
+My project/[Bb]uild/
+My project/[Bb]uilds/
+
+# Temp/cache files
+My project/.utmp/
+My project/.gradle/
+My project/obj/
+*.tmp
+*.temp
 
 # Crashlytics
 crashlytics-build.properties
