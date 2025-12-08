@@ -14,9 +14,10 @@ public class LocationService : MonoBehaviour
     [SerializeField] private float desiredAccuracy = 5f;
     
     [Header("Debug/Quest Mode")]
-    [SerializeField] private bool useDebugLocation = true;
+    [SerializeField] private bool useDebugLocation = false; // Auto-detect: true for Quest, false for iOS
     [SerializeField] private double debugLatitude = 37.7749;
     [SerializeField] private double debugLongitude = -122.4194;
+    [SerializeField] private bool autoDetectPlatform = true;
     
     // Reference point for world coordinate conversion
     private double refLat;
@@ -35,6 +36,18 @@ public class LocationService : MonoBehaviour
     
     void Start()
     {
+        // Auto-detect platform
+        if (autoDetectPlatform)
+        {
+            #if UNITY_ANDROID && !UNITY_EDITOR
+            // Quest doesn't have GPS, use debug
+            useDebugLocation = true;
+            #elif UNITY_IOS && !UNITY_EDITOR
+            // iOS has GPS, use real location
+            useDebugLocation = false;
+            #endif
+        }
+        
         if (useDebugLocation)
         {
             // Use debug coordinates (for Quest or testing)
