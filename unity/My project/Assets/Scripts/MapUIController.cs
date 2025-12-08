@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using TMPro;
 
 public class MapUIController : MonoBehaviour
@@ -38,13 +40,26 @@ public class MapUIController : MonoBehaviour
     
     void Start()
     {
-        // Ensure EventSystem exists
+        // Ensure EventSystem exists with NEW Input System module
         if (FindFirstObjectByType<EventSystem>() == null)
         {
             var es = new GameObject("EventSystem");
             es.AddComponent<EventSystem>();
-            es.AddComponent<StandaloneInputModule>();
-            Debug.Log("[MapUI] Created EventSystem");
+            es.AddComponent<InputSystemUIInputModule>(); // NEW Input System!
+            Debug.Log("[MapUI] Created EventSystem with InputSystemUIInputModule");
+        }
+        else
+        {
+            // Check if existing EventSystem has correct module
+            var existingES = FindFirstObjectByType<EventSystem>();
+            if (existingES.GetComponent<InputSystemUIInputModule>() == null)
+            {
+                // Remove old module if present
+                var oldModule = existingES.GetComponent<StandaloneInputModule>();
+                if (oldModule != null) Destroy(oldModule);
+                existingES.gameObject.AddComponent<InputSystemUIInputModule>();
+                Debug.Log("[MapUI] Added InputSystemUIInputModule to existing EventSystem");
+            }
         }
         
         CreateUI();
@@ -53,11 +68,11 @@ public class MapUIController : MonoBehaviour
     
     void CreateUI()
     {
-        // Canvas with proper settings
+        // Canvas
         var canvasObj = new GameObject("MapCanvas");
         canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 999; // Very high to be on top
+        canvas.sortingOrder = 999;
         
         var scaler = canvasObj.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -75,7 +90,7 @@ public class MapUIController : MonoBehaviour
         containerRect.offsetMin = Vector2.zero;
         containerRect.offsetMax = Vector2.zero;
         
-        // Background - clickable to dismiss debug
+        // Background
         var bg = new GameObject("Background");
         bg.transform.SetParent(mapContainer.transform, false);
         var bgRect = bg.AddComponent<RectTransform>();
@@ -83,10 +98,9 @@ public class MapUIController : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
-        var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0.05f, 0.08f, 0.05f);
+        bg.AddComponent<Image>().color = new Color(0.05f, 0.08f, 0.05f);
         
-        // Map area with grid pattern
+        // Map area
         var mapObj = new GameObject("MapImage");
         mapObj.transform.SetParent(mapContainer.transform, false);
         var mapRect = mapObj.AddComponent<RectTransform>();
@@ -95,7 +109,6 @@ public class MapUIController : MonoBehaviour
         mapRect.offsetMin = Vector2.zero;
         mapRect.offsetMax = Vector2.zero;
         mapImage = mapObj.AddComponent<RawImage>();
-        // Create grid texture as fallback
         mapImage.texture = CreateGridTexture();
         mapImage.color = Color.white;
         
@@ -110,7 +123,7 @@ public class MapUIController : MonoBehaviour
         // Player marker
         playerMarker = CreatePlayerMarker();
         
-        // Status text (top)
+        // Status text
         var statusObj = new GameObject("StatusText");
         statusObj.transform.SetParent(mapContainer.transform, false);
         var statusRect = statusObj.AddComponent<RectTransform>();
@@ -124,7 +137,7 @@ public class MapUIController : MonoBehaviour
         statusText.alignment = TextAlignmentOptions.Center;
         statusText.color = Color.white;
         
-        // Debug text (below status)
+        // Debug text
         var debugObj = new GameObject("DebugText");
         debugObj.transform.SetParent(mapContainer.transform, false);
         var debugRect = debugObj.AddComponent<RectTransform>();
@@ -133,15 +146,15 @@ public class MapUIController : MonoBehaviour
         debugRect.offsetMin = new Vector2(10, 0);
         debugRect.offsetMax = new Vector2(-10, 0);
         debugText = debugObj.AddComponent<TextMeshProUGUI>();
-        debugText.text = "";
-        debugText.fontSize = 16;
+        debugText.text = "Tap the green button below";
+        debugText.fontSize = 18;
         debugText.alignment = TextAlignmentOptions.Center;
         debugText.color = Color.yellow;
         
-        // AR Button - BIG and centered
+        // AR Button
         CreateARButton();
         
-        Debug.Log("[MapUI] UI created with EventSystem");
+        Debug.Log("[MapUI] UI created");
     }
     
     Texture2D CreateGridTexture()
@@ -150,36 +163,15 @@ public class MapUIController : MonoBehaviour
         var tex = new Texture2D(size, size);
         Color bgColor = new Color(0.15f, 0.22f, 0.15f);
         Color lineColor = new Color(0.25f, 0.35f, 0.25f);
-        Color majorLine = new Color(0.35f, 0.45f, 0.35f);
         
-        // Fill background
         Color[] pixels = new Color[size * size];
-        for (int i = 0; i < pixels.Length; i++)
-            pixels[i] = bgColor;
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = bgColor;
         
-        // Draw grid
         int gridSize = 32;
         for (int x = 0; x < size; x++)
-        {
             for (int y = 0; y < size; y++)
-            {
                 if (x % gridSize == 0 || y % gridSize == 0)
                     pixels[y * size + x] = lineColor;
-                if (x % (gridSize * 4) == 0 || y % (gridSize * 4) == 0)
-                    pixels[y * size + x] = majorLine;
-            }
-        }
-        
-        // Center crosshair
-        int center = size / 2;
-        for (int i = center - 20; i < center + 20; i++)
-        {
-            if (i >= 0 && i < size)
-            {
-                pixels[center * size + i] = Color.white;
-                pixels[i * size + center] = Color.white;
-            }
-        }
         
         tex.SetPixels(pixels);
         tex.Apply();
@@ -194,22 +186,15 @@ public class MapUIController : MonoBehaviour
         rect.sizeDelta = new Vector2(50, 50);
         rect.anchoredPosition = Vector2.zero;
         
-        // Blue circle
-        var circle = new GameObject("Circle");
-        circle.transform.SetParent(marker.transform, false);
-        var circleRect = circle.AddComponent<RectTransform>();
-        circleRect.sizeDelta = new Vector2(40, 40);
-        var circleImg = circle.AddComponent<Image>();
-        circleImg.color = new Color(0.2f, 0.5f, 1f);
-        
-        // White border
         var border = new GameObject("Border");
         border.transform.SetParent(marker.transform, false);
-        border.transform.SetAsFirstSibling();
-        var borderRect = border.AddComponent<RectTransform>();
-        borderRect.sizeDelta = new Vector2(48, 48);
-        var borderImg = border.AddComponent<Image>();
-        borderImg.color = Color.white;
+        border.AddComponent<RectTransform>().sizeDelta = new Vector2(48, 48);
+        border.AddComponent<Image>().color = Color.white;
+        
+        var circle = new GameObject("Circle");
+        circle.transform.SetParent(marker.transform, false);
+        circle.AddComponent<RectTransform>().sizeDelta = new Vector2(40, 40);
+        circle.AddComponent<Image>().color = new Color(0.2f, 0.5f, 1f);
         
         return rect;
     }
@@ -230,13 +215,7 @@ public class MapUIController : MonoBehaviour
         
         arButton = btnObj.AddComponent<Button>();
         arButton.targetGraphic = btnImg;
-        
-        // Use explicit listener
-        arButton.onClick.AddListener(() => {
-            Debug.Log("[MapUI] *** AR BUTTON PRESSED ***");
-            debugText.text = "Button pressed!";
-            EnterARMode();
-        });
+        arButton.onClick.AddListener(OnARButtonPressed);
         
         var textObj = new GameObject("Text");
         textObj.transform.SetParent(btnObj.transform, false);
@@ -251,9 +230,14 @@ public class MapUIController : MonoBehaviour
         text.fontStyle = FontStyles.Bold;
         text.alignment = TextAlignmentOptions.Center;
         text.color = Color.white;
-        text.raycastTarget = false; // Important: let clicks through to button
-        
-        Debug.Log("[MapUI] AR button created");
+        text.raycastTarget = false;
+    }
+    
+    void OnARButtonPressed()
+    {
+        Debug.Log("[MapUI] *** BUTTON PRESSED ***");
+        if (debugText != null) debugText.text = "Button pressed!";
+        EnterARMode();
     }
     
     IEnumerator InitializeMap()
@@ -266,14 +250,9 @@ public class MapUIController : MonoBehaviour
         
         mapCenterLat = LocationService.Instance.Latitude;
         mapCenterLng = LocationService.Instance.Longitude;
-        
         statusText.text = $"GPS: {mapCenterLat:F4}, {mapCenterLng:F4}";
-        Debug.Log($"[MapUI] Location: {mapCenterLat}, {mapCenterLng}");
         
-        if (createTestGhostNearby)
-            CreateTestGhostNearby();
-        
-        // Try to load real map
+        if (createTestGhostNearby) CreateTestGhostNearby();
         StartCoroutine(LoadMapTile());
     }
     
@@ -284,18 +263,9 @@ public class MapUIController : MonoBehaviour
         
         var testData = new GhostData
         {
-            id = 9999,
-            name = "Test Ghost",
-            personality = "Friendly",
-            visibility_radius_m = 100,
+            id = 9999, name = "Test Ghost", personality = "Friendly", visibility_radius_m = 100,
             location = new GhostLocation { lat = (float)testLat, lng = (float)testLng },
-            interaction = new GhostInteraction
-            {
-                type = "riddle_unlock",
-                riddle = "What has hands but can't clap?",
-                correct_answer = "clock",
-                reward = new GhostReward { type = "points", value = "100" }
-            }
+            interaction = new GhostInteraction { type = "riddle_unlock", riddle = "What has hands but can't clap?", correct_answer = "clock", reward = new GhostReward { type = "points", value = "100" } }
         };
         
         var existingGhost = FindFirstObjectByType<GhostVisual>();
@@ -304,17 +274,13 @@ public class MapUIController : MonoBehaviour
             var newGhost = Instantiate(existingGhost.gameObject);
             newGhost.name = "TestGhost_Nearby";
             newGhost.GetComponent<GhostVisual>().Initialize(testData);
-            Vector3 worldPos = LocationService.Instance.GeoToWorld(testLat, testLng);
-            worldPos.y = 1.5f;
-            newGhost.transform.position = worldPos;
-            Debug.Log($"[MapUI] Test ghost at {testLat:F6}, {testLng:F6}");
+            newGhost.transform.position = new Vector3(LocationService.Instance.GeoToWorld(testLat, testLng).x, 1.5f, LocationService.Instance.GeoToWorld(testLat, testLng).z);
         }
     }
     
     IEnumerator LoadMapTile()
     {
         string url = $"https://staticmap.openstreetmap.de/staticmap.php?center={mapCenterLat},{mapCenterLng}&zoom={mapZoom}&size=512x512&maptype=mapnik";
-        Debug.Log($"[MapUI] Loading map: {url}");
         
         using (var www = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(url))
         {
@@ -324,16 +290,10 @@ public class MapUIController : MonoBehaviour
             if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
             {
                 var tex = UnityEngine.Networking.DownloadHandlerTexture.GetContent(www);
-                if (tex != null)
-                {
-                    mapImage.texture = tex;
-                    Debug.Log("[MapUI] Map loaded!");
-                    debugText.text = "Map loaded";
-                }
+                if (tex != null) { mapImage.texture = tex; debugText.text = "Map loaded"; }
             }
             else
             {
-                Debug.LogWarning($"[MapUI] Map failed: {www.error}");
                 debugText.text = $"Map: {www.error}";
             }
         }
@@ -342,24 +302,20 @@ public class MapUIController : MonoBehaviour
     void Update()
     {
         if (isARMode) return;
-        
         UpdateGhostMarkers();
         UpdateStatus();
         
-        // Manual touch detection as backup
-        if (Input.touchCount > 0)
+        // New Input System touch detection
+        if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
         {
-            Touch touch = Input.GetTouch(0);
-            if (touch.phase == TouchPhase.Began)
+            Vector2 pos = Touchscreen.current.primaryTouch.position.ReadValue();
+            debugText.text = $"Touch: {pos.x:F0}, {pos.y:F0}";
+            
+            // Bottom 15% = AR button area
+            if (pos.y < Screen.height * 0.15f)
             {
-                debugText.text = $"Touch: {touch.position}";
-                
-                // Check if touch is in button area (bottom 15% of screen)
-                if (touch.position.y < Screen.height * 0.15f)
-                {
-                    Debug.Log("[MapUI] Touch in button area - entering AR");
-                    EnterARMode();
-                }
+                Debug.Log("[MapUI] Touch in button area");
+                EnterARMode();
             }
         }
     }
@@ -367,11 +323,8 @@ public class MapUIController : MonoBehaviour
     void UpdateStatus()
     {
         if (statusText == null) return;
-        
         var ghosts = FindObjectsByType<GhostVisual>(FindObjectsSortMode.None);
-        int count = 0;
-        float nearest = float.MaxValue;
-        
+        int count = 0; float nearest = float.MaxValue;
         foreach (var g in ghosts)
         {
             if (g.Data == null) continue;
@@ -379,17 +332,12 @@ public class MapUIController : MonoBehaviour
             float d = g.DistanceToPlayer();
             if (d < nearest) { nearest = d; selectedGhost = g; }
         }
-        
-        if (count == 0)
-            statusText.text = "Searching for ghosts...";
-        else
-            statusText.text = $"Found {count} ghost(s) - Nearest: {nearest:F0}m\nTap ghost or button below";
+        statusText.text = count == 0 ? "Searching..." : $"{count} ghost(s) - Nearest: {nearest:F0}m";
     }
     
     void UpdateGhostMarkers()
     {
         if (markersContainer == null) return;
-        
         var ghosts = FindObjectsByType<GhostVisual>(FindObjectsSortMode.None);
         HashSet<int> activeIds = new HashSet<int>();
         
@@ -404,21 +352,15 @@ public class MapUIController : MonoBehaviour
                 marker = CreateGhostMarker(ghost);
                 ghostMarkers[id] = marker;
             }
-            
             marker.anchoredPosition = GeoToMapPos(ghost.Data.location.lat, ghost.Data.location.lng);
-            
             var label = marker.Find("Label")?.GetComponent<TextMeshProUGUI>();
-            if (label != null)
-                label.text = $"{ghost.Data.name}\n{ghost.DistanceToPlayer():F0}m";
+            if (label != null) label.text = $"{ghost.Data.name}\n{ghost.DistanceToPlayer():F0}m";
         }
         
-        // Cleanup
         List<int> toRemove = new List<int>();
         foreach (var kvp in ghostMarkers)
             if (!activeIds.Contains(kvp.Key)) { Destroy(kvp.Value.gameObject); toRemove.Add(kvp.Key); }
-        foreach (int id in toRemove)
-            ghostMarkers.Remove(id);
-        
+        foreach (int id in toRemove) ghostMarkers.Remove(id);
         playerMarker.SetAsLastSibling();
     }
     
@@ -429,34 +371,25 @@ public class MapUIController : MonoBehaviour
         var rect = marker.AddComponent<RectTransform>();
         rect.sizeDelta = new Vector2(70, 90);
         
-        // Cyan circle for ghost
         var circle = new GameObject("Circle");
         circle.transform.SetParent(marker.transform, false);
-        var circleRect = circle.AddComponent<RectTransform>();
-        circleRect.sizeDelta = new Vector2(40, 40);
-        circleRect.anchoredPosition = new Vector2(0, 20);
-        var circleImg = circle.AddComponent<Image>();
-        circleImg.color = Color.cyan;
+        var cRect = circle.AddComponent<RectTransform>();
+        cRect.sizeDelta = new Vector2(40, 40);
+        cRect.anchoredPosition = new Vector2(0, 20);
+        circle.AddComponent<Image>().color = Color.cyan;
         
-        // Tap area
         var tapImg = marker.AddComponent<Image>();
-        tapImg.color = new Color(1, 1, 1, 0.01f); // Nearly invisible but raycastable
+        tapImg.color = new Color(1, 1, 1, 0.01f);
         tapImg.raycastTarget = true;
         var btn = marker.AddComponent<Button>();
         btn.targetGraphic = tapImg;
-        btn.onClick.AddListener(() => {
-            Debug.Log($"[MapUI] Ghost tapped: {ghost.Data.name}");
-            debugText.text = $"Tapped: {ghost.Data.name}";
-            selectedGhost = ghost;
-            EnterARMode();
-        });
+        btn.onClick.AddListener(() => { debugText.text = $"Tapped: {ghost.Data.name}"; selectedGhost = ghost; EnterARMode(); });
         
-        // Label
         var labelObj = new GameObject("Label");
         labelObj.transform.SetParent(marker.transform, false);
-        var labelRect = labelObj.AddComponent<RectTransform>();
-        labelRect.anchoredPosition = new Vector2(0, -25);
-        labelRect.sizeDelta = new Vector2(140, 50);
+        var lRect = labelObj.AddComponent<RectTransform>();
+        lRect.anchoredPosition = new Vector2(0, -25);
+        lRect.sizeDelta = new Vector2(140, 50);
         var label = labelObj.AddComponent<TextMeshProUGUI>();
         label.text = ghost.Data.name;
         label.fontSize = 14;
@@ -471,20 +404,15 @@ public class MapUIController : MonoBehaviour
     {
         Debug.Log("[MapUI] === ENTERING AR MODE ===");
         isARMode = true;
-        
-        if (mapContainer != null)
-            mapContainer.SetActive(false);
-        
+        if (mapContainer != null) mapContainer.SetActive(false);
         foreach (var g in FindObjectsByType<GhostVisual>(FindObjectsSortMode.None))
-            foreach (var r in g.GetComponentsInChildren<Renderer>())
-                r.enabled = true;
+            foreach (var r in g.GetComponentsInChildren<Renderer>()) r.enabled = true;
     }
     
     public void ExitARMode()
     {
         isARMode = false;
-        if (mapContainer != null)
-            mapContainer.SetActive(true);
+        if (mapContainer != null) mapContainer.SetActive(true);
     }
     
     Vector2 GeoToMapPos(double lat, double lng)
