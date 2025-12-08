@@ -86,6 +86,7 @@ public class QuestSceneSetup : EditorWindow
         managers.AddComponent<GhostAPI>();
         managers.AddComponent<GhostManager>();
         managers.AddComponent<GhostInteractor>();
+        managers.AddComponent<MapUIController>(); // Add map UI
         
         // Assign ghost prefab
         var ghostManager = managers.GetComponent<GhostManager>();

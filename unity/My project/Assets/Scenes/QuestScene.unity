@@ -588,6 +588,7 @@ GameObject:
   - component: {fileID: 1101029331}
   - component: {fileID: 1101029330}
   - component: {fileID: 1101029329}
+  - component: {fileID: 1101029334}
   m_Layer: 0
   m_Name: GhostManagers
   m_TagString: Untagged
@@ -595,6 +596,31 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &1101029334
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1101029328}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6789012345678abcdef01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapUIController
+  showMap: 1
+  canvas: {fileID: 0}
+  mapImage: {fileID: 0}
+  markersContainer: {fileID: 0}
+  statusText: {fileID: 0}
+  instructionsText: {fileID: 0}
+  mapZoom: 15
+  metersPerPixel: 4.8
+  playerColor: {r: 0, g: 0, b: 1, a: 1}
+  ghostColor: {r: 0, g: 1, b: 1, a: 0.9}
+  nearbyColor: {r: 0, g: 1, b: 0, a: 1}
+  nearbyThreshold: 100
+  arTriggerDistance: 50
 --- !u!114 &1101029329
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -661,9 +687,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LocationService
   updateInterval: 1
   desiredAccuracy: 5
-  useDebugLocation: 1
+  useDebugLocation: 0
   debugLatitude: 37.7749
   debugLongitude: -122.4194
+  autoDetectPlatform: 1
 --- !u!4 &1101029333
 Transform:
   m_ObjectHideFlags: 0
