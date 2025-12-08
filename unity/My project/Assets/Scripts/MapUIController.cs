@@ -2,12 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 
 /// <summary>
 /// Cross-platform map UI that works on Quest, iOS, and Android.
 /// Shows a full-screen map view with ghost markers.
-/// Auto-creates UI if not present in scene.
+/// Tap on ghost marker to enter AR mode.
 /// </summary>
 public class MapUIController : MonoBehaviour
 {
@@ -15,17 +16,19 @@ public class MapUIController : MonoBehaviour
     
     [Header("Mode")]
     public bool showMap = true;
+    public bool isARMode = false;
     
     [Header("UI References (auto-created if null)")]
     [SerializeField] private Canvas canvas;
+    [SerializeField] private GameObject mapContainer;
     [SerializeField] private RawImage mapImage;
     [SerializeField] private RectTransform markersContainer;
     [SerializeField] private TextMeshProUGUI statusText;
-    [SerializeField] private TextMeshProUGUI instructionsText;
+    [SerializeField] private Button arButton;
     
     [Header("Map Settings")]
-    [SerializeField] private int mapZoom = 15;
-    [SerializeField] private float metersPerPixel = 4.8f; // At zoom 15
+    [SerializeField] private int mapZoom = 16;
+    [SerializeField] private float metersPerPixel = 2.4f; // At zoom 16
     
     [Header("Marker Settings")]
     [SerializeField] private Color playerColor = Color.blue;
@@ -33,13 +36,15 @@ public class MapUIController : MonoBehaviour
     [SerializeField] private Color nearbyColor = Color.green;
     [SerializeField] private float nearbyThreshold = 100f;
     
-    [Header("AR Transition")]
-    [SerializeField] private float arTriggerDistance = 50f;
+    [Header("Test Ghost")]
+    [SerializeField] private bool createTestGhostNearby = true;
+    [SerializeField] private float testGhostDistance = 5f; // meters
     
     private RectTransform playerMarker;
     private Dictionary<int, RectTransform> ghostMarkers = new Dictionary<int, RectTransform>();
     private double mapCenterLat, mapCenterLng;
     private bool mapLoaded;
+    private GhostVisual selectedGhost;
     
     void Awake()
     {
@@ -58,20 +63,18 @@ public class MapUIController : MonoBehaviour
         // Find or create canvas
         if (canvas == null)
         {
-            canvas = FindFirstObjectByType<Canvas>();
-            if (canvas == null)
-            {
-                var canvasObj = new GameObject("MapCanvas");
-                canvas = canvasObj.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 100; // On top
-                canvasObj.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                canvasObj.AddComponent<GraphicRaycaster>();
-            }
+            var canvasObj = new GameObject("MapCanvas");
+            canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
+            var scaler = canvasObj.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080, 1920);
+            canvasObj.AddComponent<GraphicRaycaster>();
         }
         
-        // Create map container
-        var mapContainer = new GameObject("MapContainer");
+        // Map container
+        mapContainer = new GameObject("MapContainer");
         mapContainer.transform.SetParent(canvas.transform, false);
         var containerRect = mapContainer.AddComponent<RectTransform>();
         containerRect.anchorMin = Vector2.zero;
@@ -88,20 +91,20 @@ public class MapUIController : MonoBehaviour
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
         var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0.1f, 0.15f, 0.1f);
+        bgImg.color = new Color(0.15f, 0.2f, 0.15f);
         
         // Map image
         var mapObj = new GameObject("MapImage");
         mapObj.transform.SetParent(mapContainer.transform, false);
         var mapRect = mapObj.AddComponent<RectTransform>();
-        mapRect.anchorMin = new Vector2(0.05f, 0.12f);
-        mapRect.anchorMax = new Vector2(0.95f, 0.88f);
+        mapRect.anchorMin = new Vector2(0.02f, 0.1f);
+        mapRect.anchorMax = new Vector2(0.98f, 0.85f);
         mapRect.offsetMin = Vector2.zero;
         mapRect.offsetMax = Vector2.zero;
         mapImage = mapObj.AddComponent<RawImage>();
-        mapImage.color = new Color(0.2f, 0.3f, 0.2f);
+        mapImage.color = new Color(0.25f, 0.35f, 0.25f);
         
-        // Markers container (centered on map)
+        // Markers container
         var markersObj = new GameObject("Markers");
         markersObj.transform.SetParent(mapObj.transform, false);
         markersContainer = markersObj.AddComponent<RectTransform>();
@@ -113,94 +116,184 @@ public class MapUIController : MonoBehaviour
         var playerObj = new GameObject("PlayerMarker");
         playerObj.transform.SetParent(markersContainer, false);
         playerMarker = playerObj.AddComponent<RectTransform>();
-        playerMarker.sizeDelta = new Vector2(24, 24);
+        playerMarker.sizeDelta = new Vector2(30, 30);
         playerMarker.anchoredPosition = Vector2.zero;
         var playerImg = playerObj.AddComponent<Image>();
         playerImg.color = playerColor;
         
-        // Status text
+        // Status text (top)
         var statusObj = new GameObject("StatusText");
         statusObj.transform.SetParent(mapContainer.transform, false);
         var statusRect = statusObj.AddComponent<RectTransform>();
-        statusRect.anchorMin = new Vector2(0, 0.9f);
-        statusRect.anchorMax = new Vector2(1, 1);
+        statusRect.anchorMin = new Vector2(0, 0.87f);
+        statusRect.anchorMax = new Vector2(1, 0.98f);
         statusRect.offsetMin = new Vector2(10, 0);
-        statusRect.offsetMax = new Vector2(-10, -5);
+        statusRect.offsetMax = new Vector2(-10, 0);
         statusText = statusObj.AddComponent<TextMeshProUGUI>();
-        statusText.text = "Initializing location...";
-        statusText.fontSize = 24;
+        statusText.text = "Initializing...";
+        statusText.fontSize = 28;
         statusText.alignment = TextAlignmentOptions.Center;
         statusText.color = Color.white;
         
-        // Instructions text
-        var instrObj = new GameObject("Instructions");
-        instrObj.transform.SetParent(mapContainer.transform, false);
-        var instrRect = instrObj.AddComponent<RectTransform>();
-        instrRect.anchorMin = new Vector2(0, 0);
-        instrRect.anchorMax = new Vector2(1, 0.1f);
-        instrRect.offsetMin = new Vector2(10, 5);
-        instrRect.offsetMax = new Vector2(-10, 0);
-        instructionsText = instrObj.AddComponent<TextMeshProUGUI>();
-        instructionsText.text = "Walk towards a ghost to interact";
-        instructionsText.fontSize = 20;
-        instructionsText.alignment = TextAlignmentOptions.Center;
-        instructionsText.color = new Color(0.7f, 0.7f, 0.7f);
+        // AR Button (bottom)
+        var btnObj = new GameObject("ARButton");
+        btnObj.transform.SetParent(mapContainer.transform, false);
+        var btnRect = btnObj.AddComponent<RectTransform>();
+        btnRect.anchorMin = new Vector2(0.2f, 0.02f);
+        btnRect.anchorMax = new Vector2(0.8f, 0.08f);
+        btnRect.offsetMin = Vector2.zero;
+        btnRect.offsetMax = Vector2.zero;
+        var btnImg = btnObj.AddComponent<Image>();
+        btnImg.color = new Color(0.2f, 0.6f, 0.2f);
+        arButton = btnObj.AddComponent<Button>();
+        arButton.onClick.AddListener(OnARButtonClick);
+        
+        var btnTextObj = new GameObject("Text");
+        btnTextObj.transform.SetParent(btnObj.transform, false);
+        var btnTextRect = btnTextObj.AddComponent<RectTransform>();
+        btnTextRect.anchorMin = Vector2.zero;
+        btnTextRect.anchorMax = Vector2.one;
+        btnTextRect.offsetMin = Vector2.zero;
+        btnTextRect.offsetMax = Vector2.zero;
+        var btnText = btnTextObj.AddComponent<TextMeshProUGUI>();
+        btnText.text = "Enter AR Mode";
+        btnText.fontSize = 24;
+        btnText.alignment = TextAlignmentOptions.Center;
+        btnText.color = Color.white;
         
         Debug.Log("[MapUIController] UI created");
     }
     
     IEnumerator InitializeMap()
     {
-        // Wait for location service
+        // Wait for location
         while (LocationService.Instance == null || !LocationService.Instance.IsRunning)
         {
-            if (statusText != null)
-                statusText.text = "Waiting for GPS...";
+            statusText.text = "Waiting for GPS...";
             yield return new WaitForSeconds(0.5f);
         }
         
         mapCenterLat = LocationService.Instance.Latitude;
         mapCenterLng = LocationService.Instance.Longitude;
         
-        UpdateStatus();
+        Debug.Log($"[MapUIController] Location: {mapCenterLat}, {mapCenterLng}");
+        
+        // Create test ghost nearby
+        if (createTestGhostNearby)
+        {
+            CreateTestGhostNearby();
+        }
+        
+        // Load map
         StartCoroutine(LoadMapTile());
+    }
+    
+    void CreateTestGhostNearby()
+    {
+        // Calculate position ~5m north of player
+        double testLat = mapCenterLat + (testGhostDistance / 111320.0);
+        double testLng = mapCenterLng;
+        
+        var testData = new GhostData
+        {
+            id = 9999,
+            name = "Nearby Test Ghost",
+            personality = "Friendly test ghost",
+            visibility_radius_m = 100,
+            location = new GhostLocation { lat = (float)testLat, lng = (float)testLng },
+            interaction = new GhostInteraction
+            {
+                type = "riddle_unlock",
+                riddle = "What has hands but can't clap?",
+                correct_answer = "clock",
+                reward = new GhostReward { type = "points", value = "100" }
+            }
+        };
+        
+        // Spawn via GhostManager or directly
+        var prefab = Resources.Load<GameObject>("GhostPrefab");
+        if (prefab == null)
+        {
+            // Try to find existing ghost prefab
+            var existingGhost = FindFirstObjectByType<GhostVisual>();
+            if (existingGhost != null)
+            {
+                var newGhost = Instantiate(existingGhost.gameObject);
+                newGhost.name = "TestGhost_Nearby";
+                var visual = newGhost.GetComponent<GhostVisual>();
+                visual.Initialize(testData);
+                
+                Vector3 worldPos = LocationService.Instance.GeoToWorld(testLat, testLng);
+                worldPos.y = 1.5f;
+                newGhost.transform.position = worldPos;
+                
+                Debug.Log($"[MapUIController] Created test ghost at {testLat}, {testLng} (world: {worldPos})");
+            }
+        }
     }
     
     IEnumerator LoadMapTile()
     {
-        if (statusText != null)
-            statusText.text = "Loading map...";
+        statusText.text = "Loading map...";
         
-        // OpenStreetMap static tile
-        string url = $"https://staticmap.openstreetmap.de/staticmap.php?center={mapCenterLat},{mapCenterLng}&zoom={mapZoom}&size=640x640&maptype=mapnik";
-        
-        using (var www = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(url))
+        // Try multiple map tile providers
+        string[] urls = new string[]
         {
-            yield return www.SendWebRequest();
+            // OpenStreetMap static
+            $"https://staticmap.openstreetmap.de/staticmap.php?center={mapCenterLat},{mapCenterLng}&zoom={mapZoom}&size=600x600&maptype=mapnik",
+            // Fallback: simple tile from OSM
+            $"https://tile.openstreetmap.org/{mapZoom}/{LonToTileX(mapCenterLng, mapZoom)}/{LatToTileY(mapCenterLat, mapZoom)}.png"
+        };
+        
+        foreach (string url in urls)
+        {
+            Debug.Log($"[MapUIController] Trying map URL: {url}");
             
-            if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            using (var www = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(url))
             {
-                var texture = UnityEngine.Networking.DownloadHandlerTexture.GetContent(www);
-                if (mapImage != null)
+                www.timeout = 10;
+                yield return www.SendWebRequest();
+                
+                if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
                 {
-                    mapImage.texture = texture;
-                    mapImage.color = Color.white;
+                    var texture = UnityEngine.Networking.DownloadHandlerTexture.GetContent(www);
+                    if (texture != null && mapImage != null)
+                    {
+                        mapImage.texture = texture;
+                        mapImage.color = Color.white;
+                        mapLoaded = true;
+                        Debug.Log("[MapUIController] Map loaded successfully");
+                        break;
+                    }
                 }
-                mapLoaded = true;
-                Debug.Log("[MapUIController] Map loaded");
-            }
-            else
-            {
-                Debug.LogWarning($"[MapUIController] Map load failed: {www.error}");
+                else
+                {
+                    Debug.LogWarning($"[MapUIController] Map load failed: {www.error}");
+                }
             }
         }
         
-        UpdateStatus();
+        if (!mapLoaded)
+        {
+            statusText.text = "Map unavailable - using grid view";
+        }
+    }
+    
+    // OSM tile coordinate helpers
+    int LonToTileX(double lon, int zoom)
+    {
+        return (int)((lon + 180.0) / 360.0 * (1 << zoom));
+    }
+    
+    int LatToTileY(double lat, int zoom)
+    {
+        return (int)((1.0 - System.Math.Log(System.Math.Tan(lat * System.Math.PI / 180.0) + 
+            1.0 / System.Math.Cos(lat * System.Math.PI / 180.0)) / System.Math.PI) / 2.0 * (1 << zoom));
     }
     
     void Update()
     {
-        if (!showMap) return;
+        if (!showMap || isARMode) return;
         
         UpdateGhostMarkers();
         UpdateStatus();
@@ -224,22 +317,19 @@ public class MapUIController : MonoBehaviour
             {
                 nearestDist = dist;
                 nearestName = ghost.Data.name;
+                selectedGhost = ghost;
             }
         }
         
         if (ghostCount == 0)
         {
-            statusText.text = $"Searching for ghosts...\n({LocationService.Instance.Latitude:F4}, {LocationService.Instance.Longitude:F4})";
-        }
-        else if (nearestDist < arTriggerDistance)
-        {
-            statusText.text = $"👻 {nearestName} is nearby! ({nearestDist:F0}m)";
-            statusText.color = nearbyColor;
+            statusText.text = "Searching for ghosts...";
+            statusText.color = Color.white;
         }
         else
         {
-            statusText.text = $"Found {ghostCount} ghost(s) - Nearest: {nearestDist:F0}m";
-            statusText.color = Color.white;
+            statusText.text = $"👻 {ghostCount} ghost(s) found\nNearest: {nearestName} ({nearestDist:F0}m)";
+            statusText.color = nearestDist < 50 ? nearbyColor : Color.white;
         }
     }
     
@@ -259,7 +349,7 @@ public class MapUIController : MonoBehaviour
             
             if (!ghostMarkers.TryGetValue(id, out RectTransform marker))
             {
-                marker = CreateGhostMarker(ghost.Data.name);
+                marker = CreateGhostMarker(ghost);
                 ghostMarkers[id] = marker;
             }
             
@@ -276,7 +366,7 @@ public class MapUIController : MonoBehaviour
             // Update label
             var label = marker.GetComponentInChildren<TextMeshProUGUI>();
             if (label != null)
-                label.text = $"{ghost.Data.name}\n{dist:F0}m";
+                label.text = $"{ghost.Data.name}\n{dist:F0}m\n<size=12>TAP to visit</size>";
         }
         
         // Remove old markers
@@ -293,25 +383,29 @@ public class MapUIController : MonoBehaviour
             ghostMarkers.Remove(id);
     }
     
-    RectTransform CreateGhostMarker(string name)
+    RectTransform CreateGhostMarker(GhostVisual ghost)
     {
-        var marker = new GameObject($"Ghost_{name}");
+        var marker = new GameObject($"Ghost_{ghost.Data.name}");
         marker.transform.SetParent(markersContainer, false);
         
         var rect = marker.AddComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(30, 30);
+        rect.sizeDelta = new Vector2(40, 40);
         
         var img = marker.AddComponent<Image>();
         img.color = ghostColor;
+        
+        // Make it clickable
+        var btn = marker.AddComponent<Button>();
+        btn.onClick.AddListener(() => OnGhostMarkerClick(ghost));
         
         // Label
         var labelObj = new GameObject("Label");
         labelObj.transform.SetParent(marker.transform, false);
         var labelRect = labelObj.AddComponent<RectTransform>();
-        labelRect.anchoredPosition = new Vector2(0, -25);
-        labelRect.sizeDelta = new Vector2(120, 40);
+        labelRect.anchoredPosition = new Vector2(0, -35);
+        labelRect.sizeDelta = new Vector2(150, 60);
         var label = labelObj.AddComponent<TextMeshProUGUI>();
-        label.text = name;
+        label.text = ghost.Data.name;
         label.fontSize = 14;
         label.alignment = TextAlignmentOptions.Center;
         label.color = Color.white;
@@ -319,26 +413,63 @@ public class MapUIController : MonoBehaviour
         return rect;
     }
     
+    void OnGhostMarkerClick(GhostVisual ghost)
+    {
+        Debug.Log($"[MapUIController] Clicked on ghost: {ghost.Data.name}");
+        selectedGhost = ghost;
+        EnterARMode();
+    }
+    
+    void OnARButtonClick()
+    {
+        if (selectedGhost != null)
+        {
+            EnterARMode();
+        }
+        else
+        {
+            statusText.text = "No ghost selected - tap a ghost marker first";
+        }
+    }
+    
+    public void EnterARMode()
+    {
+        isARMode = true;
+        if (mapContainer != null)
+            mapContainer.SetActive(false);
+        
+        // Show ghosts in 3D
+        var ghosts = FindObjectsByType<GhostVisual>(FindObjectsSortMode.None);
+        foreach (var ghost in ghosts)
+        {
+            foreach (var r in ghost.GetComponentsInChildren<Renderer>())
+                r.enabled = true;
+        }
+        
+        Debug.Log("[MapUIController] Entered AR mode");
+    }
+    
+    public void ExitARMode()
+    {
+        isARMode = false;
+        if (mapContainer != null)
+            mapContainer.SetActive(true);
+        
+        // Hide ghosts in 3D (optional - keep them visible)
+        Debug.Log("[MapUIController] Exited AR mode");
+    }
+    
     Vector2 GeoToMapPos(double lat, double lng)
     {
         double dLat = lat - mapCenterLat;
         double dLng = lng - mapCenterLng;
         
-        // Meters per degree
         double metersPerDegreeLat = 111320;
         double metersPerDegreeLng = 111320 * System.Math.Cos(mapCenterLat * Mathf.Deg2Rad);
         
-        // Convert to pixels
         float x = (float)(dLng * metersPerDegreeLng / metersPerPixel);
         float y = (float)(dLat * metersPerDegreeLat / metersPerPixel);
         
         return new Vector2(x, y);
-    }
-    
-    public void SetMapVisible(bool visible)
-    {
-        showMap = visible;
-        if (canvas != null)
-            canvas.gameObject.SetActive(visible);
     }
 }
