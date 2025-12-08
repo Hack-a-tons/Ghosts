@@ -8,30 +8,23 @@ public class MapUIController : MonoBehaviour
 {
     public static MapUIController Instance { get; private set; }
     
-    [Header("Mode")]
-    public bool showMap = true;
     public bool isARMode = false;
     
-    [Header("UI References")]
     private Canvas canvas;
     private GameObject mapContainer;
     private RawImage mapImage;
     private RectTransform markersContainer;
     private TextMeshProUGUI statusText;
-    private Button arButton;
     
-    [Header("Map Settings")]
     private int mapZoom = 16;
     private float metersPerPixel = 2.4f;
     
-    [Header("Test Ghost")]
     [SerializeField] private bool createTestGhostNearby = true;
-    [SerializeField] private float testGhostDistance = 15f; // meters - offset so not hidden
+    [SerializeField] private float testGhostDistance = 20f;
     
     private RectTransform playerMarker;
     private Dictionary<int, RectTransform> ghostMarkers = new Dictionary<int, RectTransform>();
     private double mapCenterLat, mapCenterLng;
-    private bool mapLoaded;
     private GhostVisual selectedGhost;
     
     void Awake()
@@ -54,6 +47,7 @@ public class MapUIController : MonoBehaviour
     
     void CreateUI()
     {
+        // Canvas
         var canvasObj = new GameObject("MapCanvas");
         canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -64,7 +58,7 @@ public class MapUIController : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
         canvasObj.AddComponent<GraphicRaycaster>();
         
-        // Map container - full screen
+        // Container
         mapContainer = new GameObject("MapContainer");
         mapContainer.transform.SetParent(canvas.transform, false);
         var containerRect = mapContainer.AddComponent<RectTransform>();
@@ -73,7 +67,7 @@ public class MapUIController : MonoBehaviour
         containerRect.offsetMin = Vector2.zero;
         containerRect.offsetMax = Vector2.zero;
         
-        // Dark background
+        // Background
         var bg = new GameObject("Background");
         bg.transform.SetParent(mapContainer.transform, false);
         var bgRect = bg.AddComponent<RectTransform>();
@@ -81,23 +75,20 @@ public class MapUIController : MonoBehaviour
         bgRect.anchorMax = Vector2.one;
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
-        bg.AddComponent<Image>().color = new Color(0.1f, 0.12f, 0.1f);
+        bg.AddComponent<Image>().color = new Color(0.08f, 0.1f, 0.08f);
         
-        // Map image - square, centered, with padding
+        // Map area
         var mapObj = new GameObject("MapImage");
         mapObj.transform.SetParent(mapContainer.transform, false);
         var mapRect = mapObj.AddComponent<RectTransform>();
-        mapRect.anchorMin = new Vector2(0.5f, 0.5f);
-        mapRect.anchorMax = new Vector2(0.5f, 0.5f);
-        mapRect.sizeDelta = new Vector2(600, 600); // Fixed square size
-        mapRect.anchoredPosition = new Vector2(0, 30); // Slight offset up
+        mapRect.anchorMin = new Vector2(0.05f, 0.15f);
+        mapRect.anchorMax = new Vector2(0.95f, 0.85f);
+        mapRect.offsetMin = Vector2.zero;
+        mapRect.offsetMax = Vector2.zero;
         mapImage = mapObj.AddComponent<RawImage>();
-        mapImage.color = new Color(0.2f, 0.25f, 0.2f);
-        var mapAspect = mapObj.AddComponent<AspectRatioFitter>();
-        mapAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-        mapAspect.aspectRatio = 1f;
+        mapImage.color = new Color(0.15f, 0.2f, 0.15f);
         
-        // Markers container - centered on map
+        // Markers container
         var markersObj = new GameObject("Markers");
         markersObj.transform.SetParent(mapObj.transform, false);
         markersContainer = markersObj.AddComponent<RectTransform>();
@@ -105,103 +96,115 @@ public class MapUIController : MonoBehaviour
         markersContainer.anchorMax = new Vector2(0.5f, 0.5f);
         markersContainer.sizeDelta = Vector2.zero;
         
-        // Player marker - emoji style
-        playerMarker = CreateEmojiMarker("📍", "You", markersContainer, Color.white);
-        playerMarker.anchoredPosition = Vector2.zero;
-        playerMarker.SetAsLastSibling(); // On top
+        // Player marker (blue circle with white border)
+        playerMarker = CreatePlayerMarker();
         
-        // Status text (top)
+        // Status text
         var statusObj = new GameObject("StatusText");
         statusObj.transform.SetParent(mapContainer.transform, false);
         var statusRect = statusObj.AddComponent<RectTransform>();
-        statusRect.anchorMin = new Vector2(0, 0.88f);
-        statusRect.anchorMax = new Vector2(1, 0.98f);
+        statusRect.anchorMin = new Vector2(0, 0.87f);
+        statusRect.anchorMax = new Vector2(1, 0.97f);
         statusRect.offsetMin = new Vector2(20, 0);
-        statusRect.offsetMax = new Vector2(-20, -20);
+        statusRect.offsetMax = new Vector2(-20, 0);
         statusText = statusObj.AddComponent<TextMeshProUGUI>();
         statusText.text = "Initializing...";
-        statusText.fontSize = 32;
+        statusText.fontSize = 28;
         statusText.alignment = TextAlignmentOptions.Center;
         statusText.color = Color.white;
         
-        // AR Button (bottom) - larger, more padding from edge
+        // AR Button
+        CreateARButton();
+        
+        Debug.Log("[MapUI] UI created");
+    }
+    
+    RectTransform CreatePlayerMarker()
+    {
+        var marker = new GameObject("PlayerMarker");
+        marker.transform.SetParent(markersContainer, false);
+        var rect = marker.AddComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(40, 40);
+        rect.anchoredPosition = Vector2.zero;
+        
+        // White border circle
+        var border = new GameObject("Border");
+        border.transform.SetParent(marker.transform, false);
+        var borderRect = border.AddComponent<RectTransform>();
+        borderRect.sizeDelta = new Vector2(40, 40);
+        var borderImg = border.AddComponent<Image>();
+        borderImg.color = Color.white;
+        
+        // Blue inner circle
+        var inner = new GameObject("Inner");
+        inner.transform.SetParent(marker.transform, false);
+        var innerRect = inner.AddComponent<RectTransform>();
+        innerRect.sizeDelta = new Vector2(30, 30);
+        var innerImg = inner.AddComponent<Image>();
+        innerImg.color = new Color(0.2f, 0.4f, 1f);
+        
+        // "You" label
+        var label = new GameObject("Label");
+        label.transform.SetParent(marker.transform, false);
+        var labelRect = label.AddComponent<RectTransform>();
+        labelRect.anchoredPosition = new Vector2(0, -30);
+        labelRect.sizeDelta = new Vector2(60, 25);
+        var labelText = label.AddComponent<TextMeshProUGUI>();
+        labelText.text = "You";
+        labelText.fontSize = 16;
+        labelText.alignment = TextAlignmentOptions.Center;
+        labelText.color = Color.white;
+        
+        return rect;
+    }
+    
+    void CreateARButton()
+    {
         var btnObj = new GameObject("ARButton");
         btnObj.transform.SetParent(mapContainer.transform, false);
         var btnRect = btnObj.AddComponent<RectTransform>();
-        btnRect.anchorMin = new Vector2(0.15f, 0.03f);
-        btnRect.anchorMax = new Vector2(0.85f, 0.1f);
+        btnRect.anchorMin = new Vector2(0.1f, 0.03f);
+        btnRect.anchorMax = new Vector2(0.9f, 0.12f);
         btnRect.offsetMin = Vector2.zero;
         btnRect.offsetMax = Vector2.zero;
+        
         var btnImg = btnObj.AddComponent<Image>();
-        btnImg.color = new Color(0.1f, 0.5f, 0.1f);
-        arButton = btnObj.AddComponent<Button>();
-        arButton.onClick.AddListener(OnARButtonClick);
-        var btnColors = arButton.colors;
-        btnColors.highlightedColor = new Color(0.2f, 0.7f, 0.2f);
-        btnColors.pressedColor = new Color(0.3f, 0.8f, 0.3f);
-        arButton.colors = btnColors;
+        btnImg.color = new Color(0.1f, 0.6f, 0.1f);
         
-        var btnTextObj = new GameObject("Text");
-        btnTextObj.transform.SetParent(btnObj.transform, false);
-        var btnTextRect = btnTextObj.AddComponent<RectTransform>();
-        btnTextRect.anchorMin = Vector2.zero;
-        btnTextRect.anchorMax = Vector2.one;
-        btnTextRect.offsetMin = Vector2.zero;
-        btnTextRect.offsetMax = Vector2.zero;
-        var btnText = btnTextObj.AddComponent<TextMeshProUGUI>();
-        btnText.text = "👻 Enter AR Mode";
-        btnText.fontSize = 32;
-        btnText.alignment = TextAlignmentOptions.Center;
-        btnText.color = Color.white;
+        var btn = btnObj.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
+        btn.onClick.AddListener(OnARButtonClick);
         
-        Debug.Log("[MapUIController] UI created");
-    }
-    
-    RectTransform CreateEmojiMarker(string emoji, string label, Transform parent, Color labelColor)
-    {
-        var marker = new GameObject($"Marker_{label}");
-        marker.transform.SetParent(parent, false);
-        var rect = marker.AddComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(60, 80);
+        var textObj = new GameObject("Text");
+        textObj.transform.SetParent(btnObj.transform, false);
+        var textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+        var text = textObj.AddComponent<TextMeshProUGUI>();
+        text.text = "ENTER AR MODE";
+        text.fontSize = 36;
+        text.fontStyle = FontStyles.Bold;
+        text.alignment = TextAlignmentOptions.Center;
+        text.color = Color.white;
         
-        // Emoji
-        var emojiObj = new GameObject("Emoji");
-        emojiObj.transform.SetParent(marker.transform, false);
-        var emojiRect = emojiObj.AddComponent<RectTransform>();
-        emojiRect.anchoredPosition = new Vector2(0, 15);
-        emojiRect.sizeDelta = new Vector2(50, 50);
-        var emojiText = emojiObj.AddComponent<TextMeshProUGUI>();
-        emojiText.text = emoji;
-        emojiText.fontSize = 40;
-        emojiText.alignment = TextAlignmentOptions.Center;
-        
-        // Label below
-        var labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(marker.transform, false);
-        var labelRect = labelObj.AddComponent<RectTransform>();
-        labelRect.anchoredPosition = new Vector2(0, -25);
-        labelRect.sizeDelta = new Vector2(120, 30);
-        var labelText = labelObj.AddComponent<TextMeshProUGUI>();
-        labelText.text = label;
-        labelText.fontSize = 14;
-        labelText.alignment = TextAlignmentOptions.Center;
-        labelText.color = labelColor;
-        
-        return rect;
+        Debug.Log("[MapUI] AR button created");
     }
     
     IEnumerator InitializeMap()
     {
         while (LocationService.Instance == null || !LocationService.Instance.IsRunning)
         {
-            statusText.text = "📡 Waiting for GPS...";
+            statusText.text = "Waiting for GPS...";
             yield return new WaitForSeconds(0.5f);
         }
         
         mapCenterLat = LocationService.Instance.Latitude;
         mapCenterLng = LocationService.Instance.Longitude;
         
-        Debug.Log($"[MapUIController] Location: {mapCenterLat}, {mapCenterLng}");
+        statusText.text = $"Location: {mapCenterLat:F4}, {mapCenterLng:F4}";
+        Debug.Log($"[MapUI] Got location: {mapCenterLat}, {mapCenterLng}");
         
         if (createTestGhostNearby)
             CreateTestGhostNearby();
@@ -211,15 +214,14 @@ public class MapUIController : MonoBehaviour
     
     void CreateTestGhostNearby()
     {
-        // Position NE of player so not hidden
         double testLat = mapCenterLat + (testGhostDistance / 111320.0);
         double testLng = mapCenterLng + (testGhostDistance / (111320.0 * System.Math.Cos(mapCenterLat * Mathf.Deg2Rad)));
         
         var testData = new GhostData
         {
             id = 9999,
-            name = "Friendly Ghost",
-            personality = "Helpful test ghost",
+            name = "Test Ghost",
+            personality = "Friendly",
             visibility_radius_m = 100,
             location = new GhostLocation { lat = (float)testLat, lng = (float)testLng },
             interaction = new GhostInteraction
@@ -236,80 +238,71 @@ public class MapUIController : MonoBehaviour
         {
             var newGhost = Instantiate(existingGhost.gameObject);
             newGhost.name = "TestGhost_Nearby";
-            var visual = newGhost.GetComponent<GhostVisual>();
-            visual.Initialize(testData);
-            
+            newGhost.GetComponent<GhostVisual>().Initialize(testData);
             Vector3 worldPos = LocationService.Instance.GeoToWorld(testLat, testLng);
             worldPos.y = 1.5f;
             newGhost.transform.position = worldPos;
-            
-            Debug.Log($"[MapUIController] Created test ghost at {testLat:F6}, {testLng:F6}");
+            Debug.Log($"[MapUI] Test ghost created at {testLat:F6}, {testLng:F6}");
         }
     }
     
     IEnumerator LoadMapTile()
     {
-        statusText.text = "🗺️ Loading map...";
+        statusText.text = "Loading map...";
         
         string url = $"https://staticmap.openstreetmap.de/staticmap.php?center={mapCenterLat},{mapCenterLng}&zoom={mapZoom}&size=600x600&maptype=mapnik";
+        Debug.Log($"[MapUI] Loading: {url}");
         
         using (var www = UnityEngine.Networking.UnityWebRequestTexture.GetTexture(url))
         {
-            www.timeout = 15;
+            www.timeout = 20;
             yield return www.SendWebRequest();
             
             if (www.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
             {
-                var texture = UnityEngine.Networking.DownloadHandlerTexture.GetContent(www);
-                if (texture != null && mapImage != null)
+                var tex = UnityEngine.Networking.DownloadHandlerTexture.GetContent(www);
+                if (tex != null)
                 {
-                    mapImage.texture = texture;
+                    mapImage.texture = tex;
                     mapImage.color = Color.white;
-                    mapLoaded = true;
-                    Debug.Log("[MapUIController] Map loaded");
+                    Debug.Log("[MapUI] Map loaded OK");
                 }
             }
             else
             {
-                Debug.LogWarning($"[MapUIController] Map failed: {www.error}");
-                statusText.text = "Map unavailable";
+                Debug.LogError($"[MapUI] Map FAILED: {www.error}");
+                statusText.text = $"Map error: {www.error}";
             }
         }
     }
     
     void Update()
     {
-        if (!showMap || isARMode) return;
+        if (isARMode) return;
         UpdateGhostMarkers();
         UpdateStatus();
     }
     
     void UpdateStatus()
     {
-        if (statusText == null || LocationService.Instance == null) return;
+        if (statusText == null) return;
         
         var ghosts = FindObjectsByType<GhostVisual>(FindObjectsSortMode.None);
         int count = 0;
-        float nearestDist = float.MaxValue;
-        string nearestName = "";
+        float nearest = float.MaxValue;
         
-        foreach (var ghost in ghosts)
+        foreach (var g in ghosts)
         {
-            if (ghost.Data == null) continue;
+            if (g.Data == null) continue;
             count++;
-            float dist = ghost.DistanceToPlayer();
-            if (dist < nearestDist)
-            {
-                nearestDist = dist;
-                nearestName = ghost.Data.name;
-                selectedGhost = ghost;
-            }
+            float d = g.DistanceToPlayer();
+            if (d < nearest) { nearest = d; selectedGhost = g; }
         }
         
         if (count == 0)
-            statusText.text = "🔍 Searching for ghosts...";
+            statusText.text = "Searching for ghosts...";
         else
-            statusText.text = $"👻 {count} ghost(s) • Nearest: {nearestDist:F0}m";
+            statusText.text = $"Found {count} ghost(s) - Nearest: {nearest:F0}m";
     }
     
     void UpdateGhostMarkers()
@@ -322,7 +315,6 @@ public class MapUIController : MonoBehaviour
         foreach (var ghost in ghosts)
         {
             if (ghost.Data == null) continue;
-            
             int id = ghost.Data.id;
             activeIds.Add(id);
             
@@ -332,32 +324,20 @@ public class MapUIController : MonoBehaviour
                 ghostMarkers[id] = marker;
             }
             
-            Vector2 pos = GeoToMapPos(ghost.Data.location.lat, ghost.Data.location.lng);
-            marker.anchoredPosition = pos;
+            marker.anchoredPosition = GeoToMapPos(ghost.Data.location.lat, ghost.Data.location.lng);
             
-            float dist = ghost.DistanceToPlayer();
-            var label = marker.Find("Label")?.GetComponent<TextMeshProUGUI>();
+            var label = marker.GetComponentInChildren<TextMeshProUGUI>();
             if (label != null)
-                label.text = $"{ghost.Data.name}\n{dist:F0}m";
-            
-            // Bring close ghosts to front (but behind player)
-            marker.SetSiblingIndex(dist < 50 ? markersContainer.childCount - 2 : 0);
+                label.text = $"{ghost.Data.name}\n{ghost.DistanceToPlayer():F0}m";
         }
         
-        // Cleanup
+        // Cleanup old
         List<int> toRemove = new List<int>();
         foreach (var kvp in ghostMarkers)
-        {
-            if (!activeIds.Contains(kvp.Key))
-            {
-                Destroy(kvp.Value.gameObject);
-                toRemove.Add(kvp.Key);
-            }
-        }
+            if (!activeIds.Contains(kvp.Key)) { Destroy(kvp.Value.gameObject); toRemove.Add(kvp.Key); }
         foreach (int id in toRemove)
             ghostMarkers.Remove(id);
         
-        // Keep player on top
         playerMarker.SetAsLastSibling();
     }
     
@@ -366,87 +346,72 @@ public class MapUIController : MonoBehaviour
         var marker = new GameObject($"Ghost_{ghost.Data.id}");
         marker.transform.SetParent(markersContainer, false);
         var rect = marker.AddComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(80, 100);
+        rect.sizeDelta = new Vector2(50, 70);
         
-        // Ghost emoji
-        var emojiObj = new GameObject("Emoji");
-        emojiObj.transform.SetParent(marker.transform, false);
-        var emojiRect = emojiObj.AddComponent<RectTransform>();
-        emojiRect.anchoredPosition = new Vector2(0, 20);
-        emojiRect.sizeDelta = new Vector2(60, 60);
-        var emojiText = emojiObj.AddComponent<TextMeshProUGUI>();
-        emojiText.text = "👻";
-        emojiText.fontSize = 48;
-        emojiText.alignment = TextAlignmentOptions.Center;
+        // Cyan circle
+        var circle = new GameObject("Circle");
+        circle.transform.SetParent(marker.transform, false);
+        var circleRect = circle.AddComponent<RectTransform>();
+        circleRect.sizeDelta = new Vector2(36, 36);
+        circleRect.anchoredPosition = new Vector2(0, 15);
+        var circleImg = circle.AddComponent<Image>();
+        circleImg.color = Color.cyan;
         
-        // Tap area (invisible, larger)
-        var tapArea = new GameObject("TapArea");
-        tapArea.transform.SetParent(marker.transform, false);
-        var tapRect = tapArea.AddComponent<RectTransform>();
-        tapRect.sizeDelta = new Vector2(100, 120);
-        var tapImg = tapArea.AddComponent<Image>();
-        tapImg.color = new Color(0, 0, 0, 0); // Invisible
-        var btn = tapArea.AddComponent<Button>();
-        btn.onClick.AddListener(() => OnGhostMarkerClick(ghost));
+        // Tap button (covers whole marker)
+        var tapImg = marker.AddComponent<Image>();
+        tapImg.color = new Color(0, 0, 0, 0);
+        var btn = marker.AddComponent<Button>();
+        btn.targetGraphic = tapImg;
+        btn.onClick.AddListener(() => {
+            Debug.Log($"[MapUI] Tapped ghost: {ghost.Data.name}");
+            selectedGhost = ghost;
+            EnterARMode();
+        });
         
         // Label
-        var labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(marker.transform, false);
-        var labelRect = labelObj.AddComponent<RectTransform>();
-        labelRect.anchoredPosition = new Vector2(0, -30);
-        labelRect.sizeDelta = new Vector2(140, 50);
-        var label = labelObj.AddComponent<TextMeshProUGUI>();
-        label.text = ghost.Data.name;
-        label.fontSize = 14;
-        label.alignment = TextAlignmentOptions.Center;
-        label.color = Color.cyan;
+        var label = new GameObject("Label");
+        label.transform.SetParent(marker.transform, false);
+        var labelRect = label.AddComponent<RectTransform>();
+        labelRect.anchoredPosition = new Vector2(0, -20);
+        labelRect.sizeDelta = new Vector2(120, 40);
+        var labelText = label.AddComponent<TextMeshProUGUI>();
+        labelText.text = ghost.Data.name;
+        labelText.fontSize = 12;
+        labelText.alignment = TextAlignmentOptions.Center;
+        labelText.color = Color.cyan;
         
         return rect;
     }
     
-    void OnGhostMarkerClick(GhostVisual ghost)
-    {
-        Debug.Log($"[MapUIController] Tapped: {ghost.Data.name}");
-        selectedGhost = ghost;
-        EnterARMode();
-    }
-    
     void OnARButtonClick()
     {
-        Debug.Log("[MapUIController] AR button clicked");
+        Debug.Log("[MapUI] AR BUTTON CLICKED!");
         EnterARMode();
     }
     
     public void EnterARMode()
     {
+        Debug.Log("[MapUI] ENTERING AR MODE");
         isARMode = true;
-        if (mapContainer != null)
-            mapContainer.SetActive(false);
+        mapContainer.SetActive(false);
         
-        var ghosts = FindObjectsByType<GhostVisual>(FindObjectsSortMode.None);
-        foreach (var ghost in ghosts)
-            foreach (var r in ghost.GetComponentsInChildren<Renderer>())
+        foreach (var g in FindObjectsByType<GhostVisual>(FindObjectsSortMode.None))
+            foreach (var r in g.GetComponentsInChildren<Renderer>())
                 r.enabled = true;
-        
-        Debug.Log("[MapUIController] Entered AR mode");
     }
     
     public void ExitARMode()
     {
         isARMode = false;
-        if (mapContainer != null)
-            mapContainer.SetActive(true);
-        Debug.Log("[MapUIController] Exited AR mode");
+        mapContainer.SetActive(true);
     }
     
     Vector2 GeoToMapPos(double lat, double lng)
     {
         double dLat = lat - mapCenterLat;
         double dLng = lng - mapCenterLng;
-        double metersPerDegreeLat = 111320;
-        double metersPerDegreeLng = 111320 * System.Math.Cos(mapCenterLat * Mathf.Deg2Rad);
-        float x = (float)(dLng * metersPerDegreeLng / metersPerPixel);
-        float y = (float)(dLat * metersPerDegreeLat / metersPerPixel);
+        float x = (float)(dLng * 111320 * System.Math.Cos(mapCenterLat * Mathf.Deg2Rad) / metersPerPixel);
+        float y = (float)(dLat * 111320 / metersPerPixel);
         return new Vector2(x, y);
     }
 }
